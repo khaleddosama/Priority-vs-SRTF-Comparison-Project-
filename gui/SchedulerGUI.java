@@ -43,6 +43,8 @@ public class SchedulerGUI extends JFrame {
     private List<ScheduleBlock> prioritySchedule = new ArrayList<>();
     private List<ScheduleBlock> srtfSchedule = new ArrayList<>();
     private JPanel ganttPanel;
+    private JPanel priorityGanttChart;
+    private JPanel srtfGanttChart;
     private DefaultTableModel priorityResultsModel;
     private DefaultTableModel srtfResultsModel;
     private JLabel priorityAvgWTLabel;
@@ -54,60 +56,149 @@ public class SchedulerGUI extends JFrame {
 
     public SchedulerGUI() {
         setTitle("Priority vs SRTF Scheduling");
-        setSize(1000, 700);
+        setSize(1200, 900);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        setLayout(new BorderLayout());
+        getContentPane().setBackground(new Color(240, 240, 240)); // Light gray background
+        setLayout(new BorderLayout(10, 10)); // Add gaps
+
+        // Add padding around the content
+        ((JComponent) getContentPane()).setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         add(createInputPanel(), BorderLayout.NORTH);
-        add(createTablePanel(), BorderLayout.CENTER);
-        add(createOutputPanel(), BorderLayout.SOUTH);
+
+        JSplitPane mainSplitPane = new JSplitPane(
+            JSplitPane.VERTICAL_SPLIT,
+            createTablePanel(),
+            createOutputPanel()
+        );
+        mainSplitPane.setResizeWeight(0.55);
+        mainSplitPane.setDividerSize(6);
+        mainSplitPane.setOneTouchExpandable(true);
+        mainSplitPane.setBorder(BorderFactory.createEmptyBorder());
+        add(mainSplitPane, BorderLayout.CENTER);
 
         setVisible(true);
     }
 
     private JPanel createInputPanel() {
-        JPanel panel = new JPanel(new GridLayout(2, 4, 10, 10));
-        panel.setBorder(BorderFactory.createTitledBorder("Input Panel"));
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+            BorderFactory.createEmptyBorder(15, 15, 15, 15)
+        ));
 
-        arrivalField = new JTextField();
-        burstField = new JTextField();
-        priorityField = new JTextField();
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
 
+        // Labels
+        gbc.gridx = 0; gbc.gridy = 0; gbc.anchor = GridBagConstraints.WEST;
+        panel.add(new JLabel("Arrival Time:"), gbc);
+        gbc.gridx = 1;
+        panel.add(new JLabel("Burst Time:"), gbc);
+        gbc.gridx = 2;
+        panel.add(new JLabel("Priority:"), gbc);
+        gbc.gridx = 3;
+        panel.add(new JLabel("Actions:"), gbc);
+
+        // Fields
+        arrivalField = new JTextField(8);
+        arrivalField.setFont(new Font("Arial", Font.PLAIN, 14));
+        burstField = new JTextField(8);
+        burstField.setFont(new Font("Arial", Font.PLAIN, 14));
+        priorityField = new JTextField(8);
+        priorityField.setFont(new Font("Arial", Font.PLAIN, 14));
+
+        gbc.gridx = 0; gbc.gridy = 1; gbc.fill = GridBagConstraints.HORIZONTAL;
+        panel.add(arrivalField, gbc);
+        gbc.gridx = 1;
+        panel.add(burstField, gbc);
+        gbc.gridx = 2;
+        panel.add(priorityField, gbc);
+
+        // Buttons
         JButton addBtn = new JButton("Add Process");
+        styleButton(addBtn, new Color(70, 130, 180)); // Steel blue
         JButton runBtn = new JButton("Run Simulation");
+        styleButton(runBtn, new Color(34, 139, 34)); // Forest green
         JButton clearBtn = new JButton("Clear");
+        styleButton(clearBtn, new Color(220, 20, 60)); // Crimson
 
         addBtn.addActionListener(this::addProcess);
         runBtn.addActionListener(this::runSimulation);
         clearBtn.addActionListener(e -> clearAll());
 
-        panel.add(new JLabel("Arrival Time"));
-        panel.add(new JLabel("Burst Time"));
-        panel.add(new JLabel("Priority"));
-        panel.add(new JLabel("Actions"));
-
-        panel.add(arrivalField);
-        panel.add(burstField);
-        panel.add(priorityField);
-
-        JPanel btnPanel = new JPanel();
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        btnPanel.setBackground(Color.WHITE);
         btnPanel.add(addBtn);
         btnPanel.add(runBtn);
         btnPanel.add(clearBtn);
-        panel.add(btnPanel);
+
+        gbc.gridx = 3; gbc.gridy = 1; gbc.fill = GridBagConstraints.NONE;
+        panel.add(btnPanel, gbc);
 
         return panel;
     }
 
-    private JScrollPane createTablePanel() {
+    private void styleButton(JButton button, Color bgColor) {
+        button.setBackground(bgColor);
+        button.setForeground(Color.WHITE);
+        button.setFont(new Font("Arial", Font.BOLD, 12));
+        button.setFocusPainted(false);
+        button.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+    }
+
+    private JPanel createTablePanel() {
         tableModel = new DefaultTableModel(
                 new String[]{"PID", "Arrival Time", "Burst Time", "Priority"}, 0);
         processTable = new JTable(tableModel);
+        processTable.setFont(new Font("Arial", Font.PLAIN, 12));
+        processTable.setRowHeight(25);
+        processTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 12));
+        processTable.getTableHeader().setBackground(new Color(70, 130, 180));
+        processTable.getTableHeader().setForeground(Color.WHITE);
+
+        // Set column widths to ensure all columns are visible
+        processTable.getColumnModel().getColumn(0).setPreferredWidth(60);  // PID
+        processTable.getColumnModel().getColumn(0).setMinWidth(50);
+        processTable.getColumnModel().getColumn(0).setMaxWidth(80);
+
+        processTable.getColumnModel().getColumn(1).setPreferredWidth(110); // Arrival Time
+        processTable.getColumnModel().getColumn(1).setMinWidth(80);
+        processTable.getColumnModel().getColumn(1).setMaxWidth(150);
+
+        processTable.getColumnModel().getColumn(2).setPreferredWidth(110); // Burst Time
+        processTable.getColumnModel().getColumn(2).setMinWidth(80);
+        processTable.getColumnModel().getColumn(2).setMaxWidth(150);
+
+        processTable.getColumnModel().getColumn(3).setPreferredWidth(80);  // Priority
+        processTable.getColumnModel().getColumn(3).setMinWidth(60);
+        processTable.getColumnModel().getColumn(3).setMaxWidth(100);
+
+        // Set table properties for better display
+        processTable.setAutoResizeMode(JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS);
+        processTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        processTable.setFillsViewportHeight(true);
 
         JScrollPane scrollPane = new JScrollPane(processTable);
-        scrollPane.setBorder(BorderFactory.createTitledBorder("Process Table"));
-        return scrollPane;
+        scrollPane.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
+        scrollPane.setBackground(Color.WHITE);
+
+        // Configure scroll pane for better display
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+
+        processTable.setPreferredScrollableViewportSize(new Dimension(600, 280));
+
+        JPanel tablePanel = new JPanel(new BorderLayout());
+        tablePanel.setBackground(new Color(240, 240, 240));
+        tablePanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        tablePanel.add(scrollPane, BorderLayout.CENTER);
+        return tablePanel;
     }
 
     private JTabbedPane createOutputPanel() {
@@ -118,38 +209,95 @@ public class SchedulerGUI extends JFrame {
         tabbedPane.addTab("Results", resultsPanel);
 
         // Gantt Chart tab
-        ganttPanel = new JPanel() {
+        JPanel ganttPanelContainer = new JPanel(new BorderLayout());
+        ganttPanelContainer.setBackground(new Color(240, 240, 240));
+        
+        JTabbedPane ganttTabs = new JTabbedPane();
+        ganttTabs.setFont(new Font("Arial", Font.PLAIN, 12));
+        
+        // Priority Gantt Chart
+        JPanel priorityGanttPanel = new JPanel(new BorderLayout());
+        priorityGanttPanel.setBackground(Color.WHITE);
+        priorityGanttPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        
+        priorityGanttChart = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
-                drawGantt(g);
+                drawGantt(g, prioritySchedule, "Priority Scheduling");
             }
         };
-        ganttPanel.setPreferredSize(new Dimension(800, 200));
-        JScrollPane chartScroll = new JScrollPane(ganttPanel);
-        tabbedPane.addTab("Gantt Chart", chartScroll);
+        priorityGanttChart.setBackground(Color.WHITE);
+        JScrollPane priorityGanttScroll = new JScrollPane(priorityGanttChart);
+        priorityGanttScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        priorityGanttScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+        
+        priorityGanttPanel.add(priorityGanttScroll, BorderLayout.CENTER);
+        
+        // SRTF Gantt Chart
+        JPanel srtfGanttPanel = new JPanel(new BorderLayout());
+        srtfGanttPanel.setBackground(Color.WHITE);
+        srtfGanttPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        
+        srtfGanttChart = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                drawGantt(g, srtfSchedule, "SRTF Scheduling");
+            }
+        };
+        srtfGanttChart.setBackground(Color.WHITE);
+        JScrollPane srtfGanttScroll = new JScrollPane(srtfGanttChart);
+        srtfGanttScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        srtfGanttScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+        
+        srtfGanttPanel.add(srtfGanttScroll, BorderLayout.CENTER);
+        
+        ganttTabs.addTab("Priority Gantt Chart", priorityGanttPanel);
+        ganttTabs.addTab("SRTF Gantt Chart", srtfGanttPanel);
+        
+        ganttPanelContainer.add(ganttTabs, BorderLayout.CENTER);
+        tabbedPane.addTab("Gantt Chart", ganttPanelContainer);
 
         return tabbedPane;
     }
 
     private JPanel createResultsPanel() {
         JPanel resultsPanel = new JPanel(new BorderLayout());
+        resultsPanel.setBackground(new Color(240, 240, 240));
         
         JTabbedPane resultsTabs = new JTabbedPane();
+        resultsTabs.setFont(new Font("Arial", Font.PLAIN, 12));
         
         // Priority Results Tab
         JPanel priorityPanel = new JPanel(new BorderLayout());
+        priorityPanel.setBackground(Color.WHITE);
+        priorityPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
         priorityResultsModel = new DefaultTableModel(
                 new String[]{"Process ID", "Waiting Time", "Turnaround Time", "Response Time"}, 0);
         JTable priorityTable = new JTable(priorityResultsModel);
-        priorityTable.setEnabled(false);
+        styleTable(priorityTable);
         JScrollPane priorityScroll = new JScrollPane(priorityTable);
         
         JPanel priorityAvgPanel = new JPanel(new GridLayout(3, 1, 5, 5));
-        priorityAvgPanel.setBorder(BorderFactory.createTitledBorder("Averages"));
+        priorityAvgPanel.setBackground(Color.WHITE);
+        priorityAvgPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
         priorityAvgWTLabel = new JLabel("Average WT: 0.00");
         priorityAvgTATLabel = new JLabel("Average TAT: 0.00");
         priorityAvgRTLabel = new JLabel("Average RT: 0.00");
+        styleLabel(priorityAvgWTLabel);
+        styleLabel(priorityAvgTATLabel);
+        styleLabel(priorityAvgRTLabel);
         priorityAvgPanel.add(priorityAvgWTLabel);
         priorityAvgPanel.add(priorityAvgTATLabel);
         priorityAvgPanel.add(priorityAvgRTLabel);
@@ -159,17 +307,27 @@ public class SchedulerGUI extends JFrame {
         
         // SRTF Results Tab
         JPanel srtfPanel = new JPanel(new BorderLayout());
+        srtfPanel.setBackground(Color.WHITE);
+        srtfPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
         srtfResultsModel = new DefaultTableModel(
                 new String[]{"Process ID", "Waiting Time", "Turnaround Time", "Response Time"}, 0);
         JTable srtfTable = new JTable(srtfResultsModel);
-        srtfTable.setEnabled(false);
+        styleTable(srtfTable);
         JScrollPane srtfScroll = new JScrollPane(srtfTable);
         
         JPanel srtfAvgPanel = new JPanel(new GridLayout(3, 1, 5, 5));
-        srtfAvgPanel.setBorder(BorderFactory.createTitledBorder("Averages"));
+        srtfAvgPanel.setBackground(Color.WHITE);
+        srtfAvgPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
         srtfAvgWTLabel = new JLabel("Average WT: 0.00");
         srtfAvgTATLabel = new JLabel("Average TAT: 0.00");
         srtfAvgRTLabel = new JLabel("Average RT: 0.00");
+        styleLabel(srtfAvgWTLabel);
+        styleLabel(srtfAvgTATLabel);
+        styleLabel(srtfAvgRTLabel);
         srtfAvgPanel.add(srtfAvgWTLabel);
         srtfAvgPanel.add(srtfAvgTATLabel);
         srtfAvgPanel.add(srtfAvgRTLabel);
@@ -182,6 +340,20 @@ public class SchedulerGUI extends JFrame {
         
         resultsPanel.add(resultsTabs, BorderLayout.CENTER);
         return resultsPanel;
+    }
+
+    private void styleTable(JTable table) {
+        table.setFont(new Font("Arial", Font.PLAIN, 12));
+        table.setRowHeight(25);
+        table.getTableHeader().setFont(new Font("Arial", Font.BOLD, 12));
+        table.getTableHeader().setBackground(new Color(70, 130, 180));
+        table.getTableHeader().setForeground(Color.WHITE);
+        table.setEnabled(false);
+    }
+
+    private void styleLabel(JLabel label) {
+        label.setFont(new Font("Arial", Font.PLAIN, 14));
+        label.setForeground(new Color(50, 50, 50));
     }
 
     private void addProcess(ActionEvent e) {
@@ -236,7 +408,8 @@ public class SchedulerGUI extends JFrame {
         updateResultsTable(srtfProcesses, srtfResultsModel,
                           srtfAvgWTLabel, srtfAvgTATLabel, srtfAvgRTLabel);
 
-        ganttPanel.repaint();
+        priorityGanttChart.repaint();
+        srtfGanttChart.repaint();
     }
 
     private void updateResultsTable(ArrayList<Process> processes, DefaultTableModel tableModel,
@@ -453,30 +626,43 @@ public class SchedulerGUI extends JFrame {
         }
     }
 
-    private void drawGantt(Graphics g) {
-        int width = ganttPanel.getWidth();
-        int barHeight = 30;
-        int y = 50;
+    private void drawGantt(Graphics g, List<ScheduleBlock> schedule, String title) {
+        int width = getWidth();
+        int height = getHeight();
+        int barHeight = 40;
+        int y = 60;
 
-        // Priority
-        g.setColor(Color.BLACK);
-        g.drawString("Priority Scheduling", 10, 20);
-        drawSchedule(g, prioritySchedule, 10, y, width / 2 - 20, barHeight);
+        // Title
+        g.setColor(new Color(50, 50, 50));
+        g.setFont(new Font("Arial", Font.BOLD, 16));
+        FontMetrics fm = g.getFontMetrics();
+        int titleWidth = fm.stringWidth(title);
+        g.drawString(title, (width - titleWidth) / 2, 30);
 
-        // SRTF
-        g.drawString("SRTF Scheduling", width / 2 + 10, 20);
-        drawSchedule(g, srtfSchedule, width / 2 + 10, y, width / 2 - 20, barHeight);
+        drawSchedule(g, schedule, 20, y, width - 40, barHeight);
     }
 
     private void drawSchedule(Graphics g, List<ScheduleBlock> schedule, int x, int y, int maxWidth, int barHeight) {
         if (schedule.isEmpty()) return;
 
-        int scale = 20; // pixels per time unit
+        int scale = 25; // pixels per time unit
         Map<Integer, Color> colorMap = new HashMap<>();
         int colorIndex = 0;
-        Color[] colors = {Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW, Color.ORANGE, Color.PINK};
+        Color[] colors = {new Color(255, 99, 132), new Color(54, 162, 235), new Color(75, 192, 192),
+                         new Color(255, 205, 86), new Color(153, 102, 255), new Color(255, 159, 64)};
 
         int maxTime = 0;
+
+        // Calculate max time
+        for (ScheduleBlock block : schedule) {
+            maxTime = Math.max(maxTime, block.endTime);
+        }
+
+        // Adjust scale if needed to fit
+        if (maxTime * scale > maxWidth) {
+            scale = maxWidth / maxTime;
+            if (scale < 15) scale = 15; // minimum scale
+        }
 
         // Draw blocks
         for (ScheduleBlock block : schedule) {
@@ -485,33 +671,64 @@ public class SchedulerGUI extends JFrame {
 
             if (block.processID == -1) {
                 // Idle
-                g.setColor(new Color(200, 200, 200));
+                g.setColor(new Color(220, 220, 220));
                 g.fillRect(blockX, y, blockWidth, barHeight);
-                g.setColor(Color.BLACK);
+                g.setColor(new Color(150, 150, 150));
                 g.drawRect(blockX, y, blockWidth, barHeight);
-                g.drawString("Idle", blockX + 5, y + barHeight / 2 + 5);
+                g.setColor(new Color(100, 100, 100));
+                g.setFont(new Font("Arial", Font.PLAIN, 12));
+                FontMetrics fm = g.getFontMetrics();
+                int textWidth = fm.stringWidth("Idle");
+                g.drawString("Idle", blockX + (blockWidth - textWidth) / 2, y + barHeight / 2 + 5);
             } else {
                 // Process
                 if (!colorMap.containsKey(block.processID)) {
                     colorMap.put(block.processID, colors[colorIndex % colors.length]);
                     colorIndex++;
                 }
-                g.setColor(colorMap.get(block.processID));
+                Color blockColor = colorMap.get(block.processID);
+                g.setColor(blockColor);
                 g.fillRect(blockX, y, blockWidth, barHeight);
                 g.setColor(Color.BLACK);
                 g.drawRect(blockX, y, blockWidth, barHeight);
-                g.drawString("P" + block.processID, blockX + 5, y + barHeight / 2 + 5);
+                g.setFont(new Font("Arial", Font.BOLD, 12));
+                String processText = "P" + block.processID;
+                FontMetrics fm = g.getFontMetrics();
+                int textWidth = fm.stringWidth(processText);
+                g.drawString(processText, blockX + (blockWidth - textWidth) / 2, y + barHeight / 2 + 5);
             }
-
-            maxTime = Math.max(maxTime, block.endTime);
         }
 
         // Draw time axis
-        g.setColor(Color.BLACK);
+        g.setColor(new Color(50, 50, 50));
+        g.setFont(new Font("Arial", Font.PLAIN, 12));
         for (int t = 0; t <= maxTime; t++) {
             int tx = x + t * scale;
-            g.drawLine(tx, y + barHeight, tx, y + barHeight + 10);
-            g.drawString(String.valueOf(t), tx - 5, y + barHeight + 25);
+            g.drawLine(tx, y + barHeight, tx, y + barHeight + 15);
+            String timeStr = String.valueOf(t);
+            FontMetrics fm = g.getFontMetrics();
+            int textWidth = fm.stringWidth(timeStr);
+            g.drawString(timeStr, tx - textWidth / 2, y + barHeight + 30);
+        }
+
+        // Draw legend
+        int legendY = y + barHeight + 60;
+        int legendX = x;
+        g.setFont(new Font("Arial", Font.BOLD, 12));
+        g.drawString("Legend:", legendX, legendY);
+        legendY += 20;
+
+        for (Map.Entry<Integer, Color> entry : colorMap.entrySet()) {
+            g.setColor(entry.getValue());
+            g.fillRect(legendX, legendY - 10, 15, 15);
+            g.setColor(Color.BLACK);
+            g.drawRect(legendX, legendY - 10, 15, 15);
+            g.drawString("P" + entry.getKey(), legendX + 20, legendY);
+            legendX += 60;
+            if (legendX > maxWidth - 60) {
+                legendX = x;
+                legendY += 20;
+            }
         }
     }
 
